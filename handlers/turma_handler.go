@@ -88,7 +88,6 @@ func (h TurmaHandler) AdicionarAluno(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a turma existe
 	turma, existe := storage.Turmas[turmaID]
 
 	if !existe {
@@ -98,7 +97,6 @@ func (h TurmaHandler) AdicionarAluno(c *gin.Context) {
 		return
 	}
 
-	// Verifica se o aluno existe
 	if _, existe := storage.Alunos[dados.AlunoID]; !existe {
 		c.JSON(http.StatusNotFound, gin.H{
 			"erro": "aluno não encontrado",
@@ -106,7 +104,6 @@ func (h TurmaHandler) AdicionarAluno(c *gin.Context) {
 		return
 	}
 
-	// Verifica se o aluno já está matriculado na turma
 	for _, alunoID := range turma.Alunos {
 		if alunoID == dados.AlunoID {
 			c.JSON(http.StatusConflict, gin.H{
@@ -116,10 +113,8 @@ func (h TurmaHandler) AdicionarAluno(c *gin.Context) {
 		}
 	}
 
-	// Adiciona o aluno à turma
 	turma.Alunos = append(turma.Alunos, dados.AlunoID)
 
-	// Atualiza a turma no storage
 	storage.Turmas[turmaID] = turma
 
 	c.JSON(http.StatusOK, gin.H{
@@ -132,7 +127,6 @@ func (h TurmaHandler) ListarAlunosDaTurma(c *gin.Context) {
 
 	turmaID := c.Param("id")
 
-	// Verifica se a turma existe
 	turma, existe := storage.Turmas[turmaID]
 
 	if !existe {
@@ -142,7 +136,6 @@ func (h TurmaHandler) ListarAlunosDaTurma(c *gin.Context) {
 		return
 	}
 
-	// Busca os alunos cadastrados na turma
 	alunos := make([]models.Aluno, 0, len(turma.Alunos))
 
 	for _, alunoID := range turma.Alunos {
@@ -170,7 +163,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a turma existe
 	turma, existe := storage.Turmas[turmaID]
 
 	if !existe {
@@ -180,7 +172,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a turma está ativa
 	if !turma.Ativa {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"erro": "a turma está inativa",
@@ -188,7 +179,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a sala existe
 	sala, existe := storage.Salas[dados.SalaID]
 
 	if !existe {
@@ -198,7 +188,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a sala está ativa
 	if !sala.Ativa {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"erro": "a sala está inativa",
@@ -206,7 +195,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Valida os horários
 	inicio, errInicio := time.Parse("15:04", dados.HorarioInicio)
 	fim, errFim := time.Parse("15:04", dados.HorarioFim)
 
@@ -224,7 +212,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a sala possui capacidade suficiente
 	if len(turma.Alunos) > sala.Capacidade {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{
 			"erro": "a capacidade da sala é insuficiente para a quantidade de alunos da turma",
@@ -232,7 +219,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica se a turma já possui uma alocação
 	if turma.Alocacao != nil {
 		c.JSON(http.StatusConflict, gin.H{
 			"erro": "a turma já está alocada em uma sala",
@@ -240,7 +226,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		return
 	}
 
-	// Verifica conflito de horário com outras turmas na mesma sala
 	for _, outraTurma := range storage.Turmas {
 
 		if outraTurma.Alocacao == nil {
@@ -271,9 +256,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 			continue
 		}
 
-		// Regra de sobreposição:
-		// novo início < fim existente
-		// E novo fim > início existente
 		if inicio.Before(existenteFim) && fim.After(existenteInicio) {
 
 			c.JSON(http.StatusConflict, gin.H{
@@ -283,7 +265,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		}
 	}
 
-	// Verifica conflito de horário dos alunos
 	for _, alunoID := range turma.Alunos {
 
 		for _, outraTurma := range storage.Turmas {
@@ -292,12 +273,10 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 				continue
 			}
 
-			// A outra turma precisa estar alocada
 			if outraTurma.Alocacao == nil {
 				continue
 			}
 
-			// Verifica se o aluno também está na outra turma
 			alunoNaOutraTurma := false
 
 			for _, outroAlunoID := range outraTurma.Alunos {
@@ -313,7 +292,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 
 			alocacaoExistente := outraTurma.Alocacao
 
-			// Só existe conflito se for no mesmo dia
 			if alocacaoExistente.DiaSemana != dados.DiaSemana {
 				continue
 			}
@@ -332,7 +310,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 				continue
 			}
 
-			// Verifica sobreposição de horários
 			if inicio.Before(existenteFim) && fim.After(existenteInicio) {
 
 				c.JSON(http.StatusConflict, gin.H{
@@ -343,7 +320,6 @@ func (h TurmaHandler) AlocarSala(c *gin.Context) {
 		}
 	}
 
-	// Todas as validações passaram.
 	turma.Alocacao = &models.Alocacao{
 		SalaID:        dados.SalaID,
 		DiaSemana:     dados.DiaSemana,
